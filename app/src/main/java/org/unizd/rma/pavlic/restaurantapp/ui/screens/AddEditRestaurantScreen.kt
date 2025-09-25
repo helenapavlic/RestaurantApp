@@ -1,44 +1,25 @@
 package org.unizd.rma.pavlic.restaurantapp.ui.screens
 
 import android.app.DatePickerDialog
+import android.content.Context
 import android.net.Uri
 import android.widget.DatePicker
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import org.unizd.rma.pavlic.restaurantapp.model.Restaurant
+import java.io.File
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
+import java.util.*
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditRestaurantScreen(
@@ -54,8 +35,18 @@ fun AddEditRestaurantScreen(
     var imageUri by remember { mutableStateOf(restaurant?.imageUri) }
 
     val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+
+    // Launcher za galeriju
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         imageUri = uri?.toString()
+    }
+
+    // Launcher za kameru
+    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) {
+            imageUri = tempCameraUri.toString()
+        }
     }
 
     Column(
@@ -63,7 +54,6 @@ fun AddEditRestaurantScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Naziv restorana - cijela širina
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
@@ -72,7 +62,6 @@ fun AddEditRestaurantScreen(
         )
         Spacer(Modifier.height(8.dp))
 
-        // Lokacija - cijela širina
         OutlinedTextField(
             value = location,
             onValueChange = { location = it },
@@ -104,7 +93,7 @@ fun AddEditRestaurantScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        // Datum otvaranja - datum u jednom retku, gumb ispod
+        // Datum otvaranja
         Column(modifier = Modifier.fillMaxWidth()) {
             Text("Datum otvaranja: ")
             Spacer(Modifier.height(4.dp))
@@ -131,11 +120,9 @@ fun AddEditRestaurantScreen(
             }
         }
 
-
         Spacer(Modifier.height(8.dp))
 
-        // Odabir slike
-
+        // Slika
         imageUri?.let { uri ->
             Spacer(Modifier.height(8.dp))
             AsyncImage(
@@ -145,7 +132,22 @@ fun AddEditRestaurantScreen(
                 contentScale = ContentScale.Crop
             )
         }
-        Button(onClick = { launcher.launch("image/*") }) { Text("Odaberi sliku") }
+
+        Column {
+            Text("Dodaj sliku:")
+            Spacer(Modifier.height(8.dp))
+        }
+        Row {
+            Button(onClick = { galleryLauncher.launch("image/*") }) { Text("Odaberi iz galerije") }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row{
+            Button(onClick = {
+                val uri = createImageUri(context)
+                tempCameraUri = uri
+                cameraLauncher.launch(uri)
+            }) { Text("Kamera") }
+        }
 
         Spacer(Modifier.height(16.dp))
         Row {
@@ -168,4 +170,13 @@ fun AddEditRestaurantScreen(
             OutlinedButton(onClick = onCancel) { Text("Otkaži") }
         }
     }
+}
+
+fun createImageUri(context: Context): Uri {
+    val file = File(context.cacheDir, "${System.currentTimeMillis()}.jpg")
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.provider",
+        file
+    )
 }
